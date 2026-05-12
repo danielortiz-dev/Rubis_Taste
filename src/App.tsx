@@ -12,6 +12,25 @@ export default function App() {
     ]
   };
 
+  const handleOrder = async () => {
+    try {
+      const response = await fetch("https://bitter-cloths-grab.loca.lt/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: "web_order_" + Date.now(),
+          customerName: "Rubis Taste Customer",
+          distanceMiles: Math.floor(Math.random() * 8) + 1,
+          items: [{ id: "item_1", name: "Lomo Saltado" }]
+        })
+      });
+      const data = await response.json();
+      alert("Order Sent to RGI! ID: " + data.orderId);
+    } catch (err) {
+      alert("Error sending order: " + err);
+    }
+  };
+
   const menuHighlights = [
     { title: "Lomo Saltado", img: images.gallery[0] },
     { title: "Bistec a Lo Pobre", img: images.gallery[1] },
@@ -83,15 +102,13 @@ export default function App() {
                 <MapPin className="w-5 h-5 mr-2 text-rose-600" />
                 Get Directions
               </a>
-              <a 
-                href="https://www.grubhub.com/"
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center justify-center px-8 py-3.5 border-2 border-white text-base font-medium rounded-full text-white hover:bg-white hover:text-stone-900 transition-colors"
+              <button 
+                onClick={handleOrder}
+                className="inline-flex items-center justify-center px-8 py-3.5 border-2 border-white text-base font-medium rounded-full text-white hover:bg-white hover:text-stone-900 transition-colors cursor-pointer"
               >
                 <Utensils className="w-5 h-5 mr-2" />
                 Order Online
-              </a>
+              </button>
             </div>
           </motion.div>
         </div>
