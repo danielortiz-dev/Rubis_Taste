@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { MapPin, Phone, Clock, Star, ChefHat, Utensils, Navigation, ShoppingCart, X, Plus, Minus, CheckCircle2 } from "lucide-react";
+import GooglePlacesAutocomplete from 'react-google-places-autocomplete';
 
 export default function App() {
   const images = {
@@ -24,6 +25,7 @@ export default function App() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [customerAddress, setCustomerAddress] = useState("");
+  const [addressValue, setAddressValue] = useState<any>(null);
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [distanceMiles, setDistanceMiles] = useState<number>(3);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -55,7 +57,9 @@ export default function App() {
     e.preventDefault();
     if (cart.length === 0) return alert("Your cart is empty");
     if (!customerName) return alert("Please enter your name");
-    if (!customerAddress) return alert("Please enter your delivery address");
+    if (!customerAddress && !addressValue) return alert("Please enter your delivery address");
+
+    const finalAddress = addressValue ? addressValue.label : customerAddress;
 
     setIsSubmitting(true);
     try {
@@ -68,7 +72,7 @@ export default function App() {
         body: JSON.stringify({
           id: "web_order_" + Date.now(),
           customerName,
-          customerAddress,
+          customerAddress: finalAddress,
           paymentMethod,
           distanceMiles: Number(distanceMiles),
           items
@@ -82,6 +86,7 @@ export default function App() {
       setIsCartOpen(false);
       setCustomerName("");
       setCustomerAddress("");
+      setAddressValue(null);
     } catch (err) {
       alert("Error sending order: " + err);
     } finally {
@@ -184,14 +189,49 @@ export default function App() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-stone-700 mb-1">Delivery Address</label>
-                      <input 
-                        type="text" 
-                        required
-                        value={customerAddress}
-                        onChange={(e) => setCustomerAddress(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl border border-stone-300 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all bg-white"
-                        placeholder="123 Main St, Salt Lake City"
-                      />
+                      <div className="relative">
+                        <GooglePlacesAutocomplete
+                          apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}
+                          selectProps={{
+                            value: addressValue,
+                            onChange: setAddressValue,
+                            placeholder: "Search for your address...",
+                            isClearable: true,
+                            classNamePrefix: "google-autocomplete",
+                            styles: {
+                              control: (provided) => ({
+                                ...provided,
+                                borderRadius: '0.75rem',
+                                padding: '0.25rem',
+                                border: '1px solid #d6d3d1',
+                                boxShadow: 'none',
+                                '&:hover': {
+                                  border: '1px solid #d6d3d1'
+                                }
+                              }),
+                              input: (provided) => ({
+                                ...provided,
+                                color: '#1c1917'
+                              }),
+                              option: (provided, state) => ({
+                                ...provided,
+                                backgroundColor: state.isFocused ? '#fff1f2' : '#fff',
+                                color: state.isFocused ? '#be123c' : '#1c1917',
+                              })
+                            }
+                          }}
+                        />
+                      </div>
+                      {!import.meta.env.VITE_GOOGLE_MAPS_API_KEY && (
+                         <input 
+                          type="text" 
+                          required
+                          value={customerAddress}
+                          onChange={(e) => setCustomerAddress(e.target.value)}
+                          className="mt-2 w-full px-4 py-3 rounded-xl border border-stone-300 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all bg-white"
+                          placeholder="Manual entry (Key missing)"
+                        />
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-stone-700 mb-1">Estimated Delivery Distance (Miles)</label>
