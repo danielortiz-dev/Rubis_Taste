@@ -14,7 +14,8 @@ export default function App() {
 
   const handleOrder = async () => {
     try {
-      const response = await fetch("https://bitter-cloths-grab.loca.lt/order", {
+      const apiUrl = import.meta.env.VITE_RGI_API_URL || "http://localhost:3000";
+      const response = await fetch(`${apiUrl}/order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
