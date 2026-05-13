@@ -14,7 +14,7 @@ export default function App() {
 
   const handleOrder = async () => {
     try {
-      const apiUrl = import.meta.env.VITE_RGI_API_URL || "http://localhost:3000";
+      const apiUrl = import.meta.env.VITE_RGI_API_URL || "https://sincere-truth-production-9fc9.up.railway.app";
       const response = await fetch(`${apiUrl}/order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
