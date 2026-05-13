@@ -23,6 +23,8 @@ export default function App() {
   const [cart, setCart] = useState<{id: string, name: string, price: number, quantity: number}[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [customerName, setCustomerName] = useState("");
+  const [customerAddress, setCustomerAddress] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("card");
   const [distanceMiles, setDistanceMiles] = useState<number>(3);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -53,6 +55,7 @@ export default function App() {
     e.preventDefault();
     if (cart.length === 0) return alert("Your cart is empty");
     if (!customerName) return alert("Please enter your name");
+    if (!customerAddress) return alert("Please enter your delivery address");
 
     setIsSubmitting(true);
     try {
@@ -65,6 +68,8 @@ export default function App() {
         body: JSON.stringify({
           id: "web_order_" + Date.now(),
           customerName,
+          customerAddress,
+          paymentMethod,
           distanceMiles: Number(distanceMiles),
           items
         })
@@ -72,10 +77,11 @@ export default function App() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to submit order");
       
-      alert(`Order Sent successfully! RGI Processing ID: ${data.orderId}`);
+      alert(`Payment Approved! Order Sent successfully! RGI Processing ID: ${data.orderId}`);
       setCart([]);
       setIsCartOpen(false);
       setCustomerName("");
+      setCustomerAddress("");
     } catch (err) {
       alert("Error sending order: " + err);
     } finally {
@@ -169,6 +175,17 @@ export default function App() {
                     />
                   </div>
                   <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">Delivery Address</label>
+                    <input 
+                      type="text" 
+                      required
+                      value={customerAddress}
+                      onChange={(e) => setCustomerAddress(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-stone-300 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all bg-white"
+                      placeholder="123 Main St, Salt Lake City"
+                    />
+                  </div>
+                  <div>
                     <label className="block text-sm font-medium text-stone-700 mb-1">Estimated Delivery Distance (Miles)</label>
                     <input 
                       type="number" 
@@ -178,6 +195,25 @@ export default function App() {
                       onChange={(e) => setDistanceMiles(Number(e.target.value))}
                       className="w-full px-4 py-3 rounded-xl border border-stone-300 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all bg-white"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-2">Payment Method</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className={`cursor-pointer rounded-xl border p-3 flex items-center justify-center font-medium transition-colors ${paymentMethod === 'card' ? 'border-rose-600 bg-rose-50 text-rose-700' : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-50'}`}>
+                        <input type="radio" name="payment" value="card" checked={paymentMethod === 'card'} onChange={(e) => setPaymentMethod(e.target.value)} className="hidden" />
+                        Credit Card
+                      </label>
+                      <label className={`cursor-pointer rounded-xl border p-3 flex items-center justify-center font-medium transition-colors ${paymentMethod === 'cash' ? 'border-rose-600 bg-rose-50 text-rose-700' : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-50'}`}>
+                        <input type="radio" name="payment" value="cash" checked={paymentMethod === 'cash'} onChange={(e) => setPaymentMethod(e.target.value)} className="hidden" />
+                        Cash on Delivery
+                      </label>
+                    </div>
+                    {paymentMethod === 'card' && (
+                      <div className="mt-3 p-3 bg-stone-100 rounded-lg text-sm text-stone-500 flex items-center">
+                        <CheckCircle2 className="w-4 h-4 mr-2 text-green-500" />
+                        Demo Mode: No real card required.
+                      </div>
+                    )}
                   </div>
                   <button 
                     type="submit" 
