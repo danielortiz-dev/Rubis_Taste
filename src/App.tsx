@@ -1,9 +1,21 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { MapPin, Phone, Clock, Star, ChefHat, Utensils, Navigation, ShoppingCart, X, Plus, Minus, CheckCircle2 } from "lucide-react";
 import GooglePlacesAutocomplete from 'react-google-places-autocomplete';
+import { GoogleMap, useJsApiLoader, MarkerF } from '@react-google-maps/api';
+
+const RESTAURANT_LOCATION = { lat: 40.69018447139634, lng: -111.86532452391244 };
+const MAP_CONTAINER_STYLE = { width: '100%', height: '100%' };
 
 export default function App() {
+  const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
+  
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: googleMapsApiKey,
+    libraries: ['places']
+  });
+
   const images = {
     hero: "https://images.unsplash.com/photo-1526392060635-9d6019884377?q=80&w=1920&auto=format&fit=crop",
     gallery: [
@@ -27,8 +39,43 @@ export default function App() {
   const [customerAddress, setCustomerAddress] = useState("");
   const [addressValue, setAddressValue] = useState<any>(null);
   const [paymentMethod, setPaymentMethod] = useState("card");
-  const [distanceMiles, setDistanceMiles] = useState<number>(3);
+  const [distanceMiles, setDistanceMiles] = useState<number>(0);
+  const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cardData, setCardData] = useState({ number: "", expiry: "", cvv: "" });
+
+  // Automatically calculate distance when address changes
+  React.useEffect(() => {
+    if (addressValue && isLoaded) {
+      calculateDistance(addressValue.label);
+    } else {
+      setDistanceMiles(0);
+    }
+  }, [addressValue, isLoaded]);
+
+  const calculateDistance = async (destination: string) => {
+    setIsCalculatingDistance(true);
+    try {
+      const service = new google.maps.DistanceMatrixService();
+      const response = await service.getDistanceMatrix({
+        origins: [RESTAURANT_LOCATION],
+        destinations: [destination],
+        travelMode: google.maps.TravelMode.DRIVING,
+        unitSystem: google.maps.UnitSystem.IMPERIAL,
+      });
+
+      if (response.rows[0].elements[0].status === "OK") {
+        const distanceText = response.rows[0].elements[0].distance.text;
+        const miles = parseFloat(distanceText.replace(/[^\d.]/g, ''));
+        setDistanceMiles(miles);
+      }
+    } catch (err) {
+      console.error("Distance calculation failed:", err);
+      // Fallback to a default or keep at 0 if critical
+    } finally {
+      setIsCalculatingDistance(false);
+    }
+  };
 
   const addToCart = (item: any) => {
     setCart(prev => {
@@ -57,9 +104,8 @@ export default function App() {
     e.preventDefault();
     if (cart.length === 0) return alert("Your cart is empty");
     if (!customerName) return alert("Please enter your name");
-    if (!customerAddress && !addressValue) return alert("Please enter your delivery address");
-
-    const finalAddress = addressValue ? addressValue.label : customerAddress;
+    if (!addressValue) return alert("Please enter your delivery address");
+    if (distanceMiles === 0 && isCalculatingDistance) return alert("Still calculating delivery distance...");
 
     setIsSubmitting(true);
     try {
@@ -72,7 +118,7 @@ export default function App() {
         body: JSON.stringify({
           id: "web_order_" + Date.now(),
           customerName,
-          customerAddress: finalAddress,
+          customerAddress: addressValue.label,
           paymentMethod,
           distanceMiles: Number(distanceMiles),
           items
@@ -81,12 +127,13 @@ export default function App() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to submit order");
       
-      alert(`Payment Approved! Order Sent successfully! RGI Processing ID: ${data.orderId}`);
+      alert(`Order Confirmed! Sent to RGI for processing.\nOrder ID: ${data.orderId}`);
       setCart([]);
       setIsCartOpen(false);
       setCustomerName("");
-      setCustomerAddress("");
       setAddressValue(null);
+      setDistanceMiles(0);
+      setCardData({ number: "", expiry: "", cvv: "" });
     } catch (err) {
       alert("Error sending order: " + err);
     } finally {
@@ -191,7 +238,7 @@ export default function App() {
                       <label className="block text-sm font-medium text-stone-700 mb-1">Delivery Address</label>
                       <div className="relative">
                         <GooglePlacesAutocomplete
-                          apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}
+                          apiKey={googleMapsApiKey}
                           selectProps={{
                             value: addressValue,
                             onChange: setAddressValue,
@@ -222,50 +269,86 @@ export default function App() {
                           }}
                         />
                       </div>
-                      {!import.meta.env.VITE_GOOGLE_MAPS_API_KEY && (
-                         <input 
-                          type="text" 
-                          required
-                          value={customerAddress}
-                          onChange={(e) => setCustomerAddress(e.target.value)}
-                          className="mt-2 w-full px-4 py-3 rounded-xl border border-stone-300 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all bg-white"
-                          placeholder="Manual entry (Key missing)"
-                        />
+                      {distanceMiles > 0 && (
+                        <p className="mt-2 text-xs text-stone-500 flex items-center">
+                          <Navigation className="w-3 h-3 mr-1" />
+                          Delivery distance: {distanceMiles.toFixed(1)} miles
+                        </p>
+                      )}
+                      {isCalculatingDistance && (
+                        <p className="mt-2 text-xs text-rose-500 animate-pulse">Calculating delivery distance...</p>
                       )}
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-stone-700 mb-1">Estimated Delivery Distance (Miles)</label>
-                      <input 
-                        type="number" 
-                        min="1" max="20"
-                        required
-                        value={distanceMiles}
-                        onChange={(e) => setDistanceMiles(Number(e.target.value))}
-                        className="w-full px-4 py-3 rounded-xl border border-stone-300 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all bg-white"
-                      />
-                    </div>
+                    
                     <div>
                       <label className="block text-sm font-medium text-stone-700 mb-2">Payment Method</label>
-                      <div className="grid grid-cols-2 gap-3">
-                        <label className={`cursor-pointer rounded-xl border p-3 flex items-center justify-center font-medium transition-colors ${paymentMethod === 'card' ? 'border-rose-600 bg-rose-50 text-rose-700' : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-50'}`}>
-                          <input type="radio" name="payment" value="card" checked={paymentMethod === 'card'} onChange={(e) => setPaymentMethod(e.target.value)} className="hidden" />
+                      <div className="grid grid-cols-2 gap-3 mb-4">
+                        <button 
+                          type="button"
+                          onClick={() => setPaymentMethod('card')}
+                          className={`rounded-xl border p-3 flex items-center justify-center font-medium transition-colors ${paymentMethod === 'card' ? 'border-rose-600 bg-rose-50 text-rose-700' : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-50'}`}
+                        >
                           Credit Card
-                        </label>
-                        <label className={`cursor-pointer rounded-xl border p-3 flex items-center justify-center font-medium transition-colors ${paymentMethod === 'cash' ? 'border-rose-600 bg-rose-50 text-rose-700' : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-50'}`}>
-                          <input type="radio" name="payment" value="cash" checked={paymentMethod === 'cash'} onChange={(e) => setPaymentMethod(e.target.value)} className="hidden" />
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => setPaymentMethod('cash')}
+                          className={`rounded-xl border p-3 flex items-center justify-center font-medium transition-colors ${paymentMethod === 'cash' ? 'border-rose-600 bg-rose-50 text-rose-700' : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-50'}`}
+                        >
                           Cash on Delivery
-                        </label>
+                        </button>
                       </div>
-                      {paymentMethod === 'card' && (
-                        <div className="mt-3 p-3 bg-stone-100 rounded-lg text-sm text-stone-500 flex items-center">
-                          <CheckCircle2 className="w-4 h-4 mr-2 text-green-500" />
-                          Demo Mode: No real card required.
-                        </div>
-                      )}
+                      
+                      <AnimatePresence mode="wait">
+                        {paymentMethod === 'card' && (
+                          <motion.div 
+                            key="card-form"
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="space-y-3 overflow-hidden"
+                          >
+                            <input 
+                              type="text" 
+                              placeholder="Card Number"
+                              required={paymentMethod === 'card'}
+                              value={cardData.number}
+                              onChange={(e) => setCardData({...cardData, number: e.target.value})}
+                              className="w-full px-4 py-2.5 rounded-lg border border-stone-200 text-sm outline-none focus:border-rose-500"
+                              maxLength={19}
+                            />
+                            <div className="grid grid-cols-2 gap-3">
+                              <input 
+                                type="text" 
+                                placeholder="MM/YY"
+                                required={paymentMethod === 'card'}
+                                value={cardData.expiry}
+                                onChange={(e) => setCardData({...cardData, expiry: e.target.value})}
+                                className="w-full px-4 py-2.5 rounded-lg border border-stone-200 text-sm outline-none focus:border-rose-500"
+                                maxLength={5}
+                              />
+                              <input 
+                                type="text" 
+                                placeholder="CVV"
+                                required={paymentMethod === 'card'}
+                                value={cardData.cvv}
+                                onChange={(e) => setCardData({...cardData, cvv: e.target.value})}
+                                className="w-full px-4 py-2.5 rounded-lg border border-stone-200 text-sm outline-none focus:border-rose-500"
+                                maxLength={4}
+                              />
+                            </div>
+                            <div className="p-3 bg-stone-100 rounded-lg text-xs text-stone-500 flex items-center">
+                              <CheckCircle2 className="w-4 h-4 mr-2 text-green-500" />
+                              Demo Mode: No real payment will be processed.
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
+
                     <button 
                       type="submit" 
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || isCalculatingDistance}
                       className="w-full py-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-lg shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center"
                     >
                       {isSubmitting ? (
@@ -544,16 +627,30 @@ export default function App() {
             </div>
 
             <div className="w-full md:w-1/2 rounded-2xl overflow-hidden bg-stone-200 aspect-video md:aspect-square relative border border-stone-200">
-              <iframe 
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3025.2678007629237!2d-111.86532452391244!3d40.69018447139634!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x87528a2da4d6a8dd%3A0xe54c41460c5a2c27!2sRubi&#39;s%20Peruvian%20Taste!5e0!3m2!1sen!2sus!4v1709664539655!5m2!1sen!2sus" 
-                width="100%" 
-                height="100%" 
-                className="absolute inset-0 border-0"
-                allowFullScreen={false} 
-                loading="lazy" 
-                referrerPolicy="no-referrer-when-downgrade"
-                title="Restaurant Location Map"
-              ></iframe>
+              {isLoaded ? (
+                <GoogleMap
+                  mapContainerStyle={MAP_CONTAINER_STYLE}
+                  center={RESTAURANT_LOCATION}
+                  zoom={16}
+                  options={{
+                    disableDefaultUI: true,
+                    zoomControl: true,
+                    styles: [
+                      {
+                        featureType: "poi",
+                        elementType: "labels",
+                        stylers: [{ visibility: "off" }]
+                      }
+                    ]
+                  }}
+                >
+                  <MarkerF position={RESTAURANT_LOCATION} title="Rubi's Peruvian Taste" />
+                </GoogleMap>
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-stone-100">
+                  <p className="text-stone-400">Loading Map...</p>
+                </div>
+              )}
             </div>
 
           </div>
@@ -574,7 +671,7 @@ export default function App() {
              <span>Delivery</span>
           </div>
           <p className="text-stone-500 text-sm">
-            © {new Date().getFullYear()} Rubi's Peruvian Taste. Demo preview created for presentation purposes.
+            © {new Date().getFullYear()} Rubi's Peruvian Taste. Production Integration Live.
           </p>
         </div>
       </footer>
