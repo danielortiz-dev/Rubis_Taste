@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { motion } from "motion/react";
-import { MapPin, Phone, Clock, Star, ChefHat, Utensils, Navigation, CheckCircle2 } from "lucide-react";
+import { MapPin, Phone, Clock, Star, ChefHat, Utensils, Navigation, ShoppingCart, X, Plus, Minus } from "lucide-react";
 
 export default function App() {
   const images = {
@@ -12,37 +13,194 @@ export default function App() {
     ]
   };
 
-  const handleOrder = async () => {
+  const menuHighlights = [
+    { id: "item_1", title: "Lomo Saltado", price: 18.99, img: images.gallery[0], desc: "Stir-fried beef with onions, tomatoes, fries, and rice." },
+    { id: "item_2", title: "Bistec a Lo Pobre", price: 21.99, img: images.gallery[1], desc: "Steak served with plantains, fries, fried egg, and rice." },
+    { id: "item_3", title: "Arroz con Pollo", price: 16.99, img: images.gallery[2], desc: "Cilantro-infused rice with chicken and huancaina sauce." },
+    { id: "item_4", title: "Causa Rellena", price: 12.99, img: images.gallery[3], desc: "Mashed potato layered with chicken salad and avocado." },
+  ];
+
+  const [cart, setCart] = useState<{id: string, name: string, price: number, quantity: number}[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [customerName, setCustomerName] = useState("");
+  const [distanceMiles, setDistanceMiles] = useState<number>(3);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const addToCart = (item: any) => {
+    setCart(prev => {
+      const existing = prev.find(i => i.id === item.id);
+      if (existing) {
+        return prev.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i);
+      }
+      return [...prev, { id: item.id, name: item.title, price: item.price, quantity: 1 }];
+    });
+    setIsCartOpen(true);
+  };
+
+  const updateQuantity = (id: string, delta: number) => {
+    setCart(prev => prev.map(i => {
+      if (i.id === id) {
+        return { ...i, quantity: Math.max(0, i.quantity + delta) };
+      }
+      return i;
+    }).filter(i => i.quantity > 0));
+  };
+
+  const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+  const handleCheckout = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (cart.length === 0) return alert("Your cart is empty");
+    if (!customerName) return alert("Please enter your name");
+
+    setIsSubmitting(true);
     try {
       const apiUrl = import.meta.env.VITE_RGI_API_URL || "https://sincere-truth-production-9fc9.up.railway.app";
+      const items = cart.map(i => ({ id: i.id, name: i.name, quantity: i.quantity, price: i.price }));
+      
       const response = await fetch(`${apiUrl}/order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: "web_order_" + Date.now(),
-          customerName: "Rubis Taste Customer",
-          distanceMiles: Math.floor(Math.random() * 8) + 1,
-          items: [{ id: "item_1", name: "Lomo Saltado" }]
+          customerName,
+          distanceMiles: Number(distanceMiles),
+          items
         })
       });
       const data = await response.json();
-      alert("Order Sent to RGI! ID: " + data.orderId);
+      if (!response.ok) throw new Error(data.error || "Failed to submit order");
+      
+      alert(`Order Sent successfully! RGI Processing ID: ${data.orderId}`);
+      setCart([]);
+      setIsCartOpen(false);
+      setCustomerName("");
     } catch (err) {
       alert("Error sending order: " + err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const menuHighlights = [
-    { title: "Lomo Saltado", img: images.gallery[0] },
-    { title: "Bistec a Lo Pobre", img: images.gallery[1] },
-    { title: "Arroz con Pollo", img: images.gallery[2] },
-    { title: "Causa Rellena", img: images.gallery[3] },
-  ];
-
   return (
-    <div className="min-h-screen bg-stone-50 font-sans text-stone-900 selection:bg-rose-500 selection:text-white">
+    <div className="min-h-screen bg-stone-50 font-sans text-stone-900 selection:bg-rose-500 selection:text-white pb-24 md:pb-0">
+      
+      {/* Floating Cart Button */}
+      <button 
+        onClick={() => setIsCartOpen(true)}
+        className="fixed bottom-6 right-6 z-40 bg-rose-600 text-white p-4 rounded-full shadow-2xl hover:bg-rose-700 transition-transform hover:scale-105"
+      >
+        <div className="relative">
+          <ShoppingCart className="w-6 h-6" />
+          {cartItemCount > 0 && (
+            <span className="absolute -top-2 -right-2 bg-stone-900 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full font-bold">
+              {cartItemCount}
+            </span>
+          )}
+        </div>
+      </button>
+
+      {/* Cart Modal / Slide-out */}
+      {isCartOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-stone-900/40 backdrop-blur-sm" onClick={() => setIsCartOpen(false)} />
+          <motion.div 
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            className="w-full max-w-md bg-white h-full shadow-2xl relative flex flex-col"
+          >
+            <div className="p-6 border-b border-stone-100 flex justify-between items-center bg-stone-50">
+              <h2 className="text-2xl font-bold text-stone-900">Your Order</h2>
+              <button onClick={() => setIsCartOpen(false)} className="p-2 hover:bg-stone-200 rounded-full transition-colors">
+                <X className="w-5 h-5 text-stone-600" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6">
+              {cart.length === 0 ? (
+                <div className="text-center text-stone-500 mt-12">
+                  <Utensils className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                  <p>Your cart is empty.</p>
+                  <button onClick={() => setIsCartOpen(false)} className="mt-4 text-rose-600 font-medium hover:underline">
+                    Browse Menu
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {cart.map(item => (
+                    <div key={item.id} className="flex justify-between items-center border-b border-stone-100 pb-4">
+                      <div>
+                        <h4 className="font-bold text-stone-900">{item.name}</h4>
+                        <p className="text-stone-500 text-sm">${item.price.toFixed(2)}</p>
+                      </div>
+                      <div className="flex items-center space-x-3 bg-stone-100 rounded-full px-2 py-1">
+                        <button onClick={() => updateQuantity(item.id, -1)} className="p-1 hover:bg-stone-200 rounded-full text-stone-600">
+                          <Minus className="w-4 h-4" />
+                        </button>
+                        <span className="font-medium w-4 text-center">{item.quantity}</span>
+                        <button onClick={() => updateQuantity(item.id, 1)} className="p-1 hover:bg-stone-200 rounded-full text-stone-600">
+                          <Plus className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="pt-4 flex justify-between items-center text-xl font-bold text-stone-900">
+                    <span>Subtotal</span>
+                    <span>${cartTotal.toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {cart.length > 0 && (
+              <div className="p-6 bg-stone-50 border-t border-stone-200">
+                <form onSubmit={handleCheckout} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">Customer Name</label>
+                    <input 
+                      type="text" 
+                      required
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-stone-300 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all bg-white"
+                      placeholder="e.g. John Doe"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">Estimated Delivery Distance (Miles)</label>
+                    <input 
+                      type="number" 
+                      min="1" max="20"
+                      required
+                      value={distanceMiles}
+                      onChange={(e) => setDistanceMiles(Number(e.target.value))}
+                      className="w-full px-4 py-3 rounded-xl border border-stone-300 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all bg-white"
+                    />
+                  </div>
+                  <button 
+                    type="submit" 
+                    disabled={isSubmitting}
+                    className="w-full py-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-lg shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center"
+                  >
+                    {isSubmitting ? (
+                      <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}>
+                        <Utensils className="w-5 h-5" />
+                      </motion.div>
+                    ) : (
+                      `Place Order • $${cartTotal.toFixed(2)}`
+                    )}
+                  </button>
+                </form>
+              </div>
+            )}
+          </motion.div>
+        </div>
+      )}
+
       {/* Navigation */}
-      <nav className="fixed w-full z-50 bg-white/90 backdrop-blur-md border-b border-stone-200">
+      <nav className="fixed w-full z-30 bg-white/90 backdrop-blur-md border-b border-stone-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             <div className="flex-shrink-0 flex items-center">
@@ -54,13 +212,13 @@ export default function App() {
               <a href="#menu" className="text-stone-600 hover:text-rose-700 font-medium transition-colors">Menu</a>
               <a href="#reviews" className="text-stone-600 hover:text-rose-700 font-medium transition-colors">Reviews</a>
               <a href="#location" className="text-stone-600 hover:text-rose-700 font-medium transition-colors">Location</a>
-              <a 
-                href="tel:801-899-7507" 
-                className="inline-flex items-center justify-center px-6 py-2.5 border border-transparent text-sm font-medium rounded-full text-white bg-rose-600 hover:bg-rose-700 transition-colors shadow-sm"
+              <button 
+                onClick={() => setIsCartOpen(true)}
+                className="inline-flex items-center justify-center px-6 py-2.5 border border-transparent text-sm font-medium rounded-full text-white bg-rose-600 hover:bg-rose-700 transition-colors shadow-sm cursor-pointer"
               >
-                <Phone className="w-4 h-4 mr-2" />
-                (801) 899-7507
-              </a>
+                <ShoppingCart className="w-4 h-4 mr-2" />
+                Order Online
+              </button>
             </div>
           </div>
         </div>
@@ -104,11 +262,13 @@ export default function App() {
                 Get Directions
               </a>
               <button 
-                onClick={handleOrder}
+                onClick={() => {
+                  document.getElementById("menu")?.scrollIntoView({ behavior: "smooth" });
+                }}
                 className="inline-flex items-center justify-center px-8 py-3.5 border-2 border-white text-base font-medium rounded-full text-white hover:bg-white hover:text-stone-900 transition-colors cursor-pointer"
               >
                 <Utensils className="w-5 h-5 mr-2" />
-                Order Online
+                View Menu
               </button>
             </div>
           </motion.div>
@@ -156,39 +316,43 @@ export default function App() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {menuHighlights.map((item, index) => (
               <motion.div 
-                key={index}
+                key={item.id}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="group relative rounded-2xl overflow-hidden aspect-[4/3] sm:aspect-[3/4] shadow-md cursor-pointer"
+                className="bg-white rounded-3xl overflow-hidden shadow-md flex flex-col sm:flex-row border border-stone-100 hover:shadow-xl transition-shadow"
               >
-                <img 
-                  src={item.img} 
-                  alt={item.title} 
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-stone-900/90 via-stone-900/40 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
-                <div className="absolute bottom-0 left-0 p-6">
-                  <h3 className="text-xl font-bold text-white">{item.title}</h3>
+                <div className="sm:w-2/5 aspect-square sm:aspect-auto h-48 sm:h-auto overflow-hidden relative">
+                  <img 
+                    src={item.img} 
+                    alt={item.title} 
+                    className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                  />
+                </div>
+                <div className="sm:w-3/5 p-6 flex flex-col justify-center">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="text-xl font-bold text-stone-900">{item.title}</h3>
+                    <span className="text-lg font-bold text-rose-600">${item.price.toFixed(2)}</span>
+                  </div>
+                  <p className="text-stone-500 text-sm mb-6 flex-1">
+                    {item.desc}
+                  </p>
+                  <button 
+                    onClick={() => addToCart(item)}
+                    className="w-full py-3 bg-stone-900 hover:bg-stone-800 text-white rounded-xl font-medium transition-colors flex items-center justify-center space-x-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add to Order</span>
+                  </button>
                 </div>
               </motion.div>
             ))}
           </div>
           
-          <div className="mt-12 text-center">
-            <div className="inline-flex flex-wrap justify-center gap-2 mb-8 text-stone-600">
-              <span className="px-4 py-2 bg-white rounded-full text-sm font-medium border border-stone-200">Papa a la Huancaina</span>
-              <span className="px-4 py-2 bg-white rounded-full text-sm font-medium border border-stone-200">Aji de Gallina</span>
-              <span className="px-4 py-2 bg-white rounded-full text-sm font-medium border border-stone-200">Paella</span>
-              <span className="px-4 py-2 bg-white rounded-full text-sm font-medium border border-stone-200">Ceviche</span>
-              <span className="px-4 py-2 bg-white rounded-full text-sm font-medium border border-stone-200">Jalea</span>
-            </div>
-            
-          </div>
         </div>
       </section>
 
