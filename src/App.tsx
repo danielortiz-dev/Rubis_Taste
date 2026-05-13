@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { motion } from "motion/react";
-import { MapPin, Phone, Clock, Star, ChefHat, Utensils, Navigation, ShoppingCart, X, Plus, Minus } from "lucide-react";
+import React, { useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { MapPin, Phone, Clock, Star, ChefHat, Utensils, Navigation, ShoppingCart, X, Plus, Minus, CheckCircle2 } from "lucide-react";
 
 export default function App() {
   const images = {
@@ -108,132 +108,141 @@ export default function App() {
       </button>
 
       {/* Cart Modal / Slide-out */}
-      {isCartOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="absolute inset-0 bg-stone-900/40 backdrop-blur-sm" onClick={() => setIsCartOpen(false)} />
-          <motion.div 
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            className="w-full max-w-md bg-white h-full shadow-2xl relative flex flex-col"
-          >
-            <div className="p-6 border-b border-stone-100 flex justify-between items-center bg-stone-50">
-              <h2 className="text-2xl font-bold text-stone-900">Your Order</h2>
-              <button onClick={() => setIsCartOpen(false)} className="p-2 hover:bg-stone-200 rounded-full transition-colors">
-                <X className="w-5 h-5 text-stone-600" />
-              </button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-6">
-              {cart.length === 0 ? (
-                <div className="text-center text-stone-500 mt-12">
-                  <Utensils className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                  <p>Your cart is empty.</p>
-                  <button onClick={() => setIsCartOpen(false)} className="mt-4 text-rose-600 font-medium hover:underline">
-                    Browse Menu
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {cart.map(item => (
-                    <div key={item.id} className="flex justify-between items-center border-b border-stone-100 pb-4">
-                      <div>
-                        <h4 className="font-bold text-stone-900">{item.name}</h4>
-                        <p className="text-stone-500 text-sm">${item.price.toFixed(2)}</p>
-                      </div>
-                      <div className="flex items-center space-x-3 bg-stone-100 rounded-full px-2 py-1">
-                        <button onClick={() => updateQuantity(item.id, -1)} className="p-1 hover:bg-stone-200 rounded-full text-stone-600">
-                          <Minus className="w-4 h-4" />
-                        </button>
-                        <span className="font-medium w-4 text-center">{item.quantity}</span>
-                        <button onClick={() => updateQuantity(item.id, 1)} className="p-1 hover:bg-stone-200 rounded-full text-stone-600">
-                          <Plus className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  <div className="pt-4 flex justify-between items-center text-xl font-bold text-stone-900">
-                    <span>Subtotal</span>
-                    <span>${cartTotal.toFixed(2)}</span>
+      <AnimatePresence>
+        {isCartOpen && (
+          <div className="fixed inset-0 z-50 flex justify-end">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-stone-900/40 backdrop-blur-sm" 
+              onClick={() => setIsCartOpen(false)} 
+            />
+            <motion.div 
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="w-full max-w-md bg-white h-full shadow-2xl relative flex flex-col"
+            >
+              <div className="p-6 border-b border-stone-100 flex justify-between items-center bg-stone-50">
+                <h2 className="text-2xl font-bold text-stone-900">Your Order</h2>
+                <button onClick={() => setIsCartOpen(false)} className="p-2 hover:bg-stone-200 rounded-full transition-colors">
+                  <X className="w-5 h-5 text-stone-600" />
+                </button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-6">
+                {cart.length === 0 ? (
+                  <div className="text-center text-stone-500 mt-12">
+                    <Utensils className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                    <p>Your cart is empty.</p>
+                    <button onClick={() => setIsCartOpen(false)} className="mt-4 text-rose-600 font-medium hover:underline">
+                      Browse Menu
+                    </button>
                   </div>
+                ) : (
+                  <div className="space-y-6">
+                    {cart.map(item => (
+                      <div key={item.id} className="flex justify-between items-center border-b border-stone-100 pb-4">
+                        <div>
+                          <h4 className="font-bold text-stone-900">{item.name}</h4>
+                          <p className="text-stone-500 text-sm">${item.price.toFixed(2)}</p>
+                        </div>
+                        <div className="flex items-center space-x-3 bg-stone-100 rounded-full px-2 py-1">
+                          <button onClick={() => updateQuantity(item.id, -1)} className="p-1 hover:bg-stone-200 rounded-full text-stone-600">
+                            <Minus className="w-4 h-4" />
+                          </button>
+                          <span className="font-medium w-4 text-center">{item.quantity}</span>
+                          <button onClick={() => updateQuantity(item.id, 1)} className="p-1 hover:bg-stone-200 rounded-full text-stone-600">
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="pt-4 flex justify-between items-center text-xl font-bold text-stone-900">
+                      <span>Subtotal</span>
+                      <span>${cartTotal.toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {cart.length > 0 && (
+                <div className="p-6 bg-stone-50 border-t border-stone-200">
+                  <form onSubmit={handleCheckout} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-stone-700 mb-1">Customer Name</label>
+                      <input 
+                        type="text" 
+                        required
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl border border-stone-300 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all bg-white"
+                        placeholder="e.g. John Doe"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-stone-700 mb-1">Delivery Address</label>
+                      <input 
+                        type="text" 
+                        required
+                        value={customerAddress}
+                        onChange={(e) => setCustomerAddress(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl border border-stone-300 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all bg-white"
+                        placeholder="123 Main St, Salt Lake City"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-stone-700 mb-1">Estimated Delivery Distance (Miles)</label>
+                      <input 
+                        type="number" 
+                        min="1" max="20"
+                        required
+                        value={distanceMiles}
+                        onChange={(e) => setDistanceMiles(Number(e.target.value))}
+                        className="w-full px-4 py-3 rounded-xl border border-stone-300 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-stone-700 mb-2">Payment Method</label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <label className={`cursor-pointer rounded-xl border p-3 flex items-center justify-center font-medium transition-colors ${paymentMethod === 'card' ? 'border-rose-600 bg-rose-50 text-rose-700' : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-50'}`}>
+                          <input type="radio" name="payment" value="card" checked={paymentMethod === 'card'} onChange={(e) => setPaymentMethod(e.target.value)} className="hidden" />
+                          Credit Card
+                        </label>
+                        <label className={`cursor-pointer rounded-xl border p-3 flex items-center justify-center font-medium transition-colors ${paymentMethod === 'cash' ? 'border-rose-600 bg-rose-50 text-rose-700' : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-50'}`}>
+                          <input type="radio" name="payment" value="cash" checked={paymentMethod === 'cash'} onChange={(e) => setPaymentMethod(e.target.value)} className="hidden" />
+                          Cash on Delivery
+                        </label>
+                      </div>
+                      {paymentMethod === 'card' && (
+                        <div className="mt-3 p-3 bg-stone-100 rounded-lg text-sm text-stone-500 flex items-center">
+                          <CheckCircle2 className="w-4 h-4 mr-2 text-green-500" />
+                          Demo Mode: No real card required.
+                        </div>
+                      )}
+                    </div>
+                    <button 
+                      type="submit" 
+                      disabled={isSubmitting}
+                      className="w-full py-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-lg shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center"
+                    >
+                      {isSubmitting ? (
+                        <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}>
+                          <Utensils className="w-5 h-5" />
+                        </motion.div>
+                      ) : (
+                        `Place Order • $${cartTotal.toFixed(2)}`
+                      )}
+                    </button>
+                  </form>
                 </div>
               )}
-            </div>
-
-            {cart.length > 0 && (
-              <div className="p-6 bg-stone-50 border-t border-stone-200">
-                <form onSubmit={handleCheckout} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-stone-700 mb-1">Customer Name</label>
-                    <input 
-                      type="text" 
-                      required
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-stone-300 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all bg-white"
-                      placeholder="e.g. John Doe"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-stone-700 mb-1">Delivery Address</label>
-                    <input 
-                      type="text" 
-                      required
-                      value={customerAddress}
-                      onChange={(e) => setCustomerAddress(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-stone-300 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all bg-white"
-                      placeholder="123 Main St, Salt Lake City"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-stone-700 mb-1">Estimated Delivery Distance (Miles)</label>
-                    <input 
-                      type="number" 
-                      min="1" max="20"
-                      required
-                      value={distanceMiles}
-                      onChange={(e) => setDistanceMiles(Number(e.target.value))}
-                      className="w-full px-4 py-3 rounded-xl border border-stone-300 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all bg-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-stone-700 mb-2">Payment Method</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <label className={`cursor-pointer rounded-xl border p-3 flex items-center justify-center font-medium transition-colors ${paymentMethod === 'card' ? 'border-rose-600 bg-rose-50 text-rose-700' : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-50'}`}>
-                        <input type="radio" name="payment" value="card" checked={paymentMethod === 'card'} onChange={(e) => setPaymentMethod(e.target.value)} className="hidden" />
-                        Credit Card
-                      </label>
-                      <label className={`cursor-pointer rounded-xl border p-3 flex items-center justify-center font-medium transition-colors ${paymentMethod === 'cash' ? 'border-rose-600 bg-rose-50 text-rose-700' : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-50'}`}>
-                        <input type="radio" name="payment" value="cash" checked={paymentMethod === 'cash'} onChange={(e) => setPaymentMethod(e.target.value)} className="hidden" />
-                        Cash on Delivery
-                      </label>
-                    </div>
-                    {paymentMethod === 'card' && (
-                      <div className="mt-3 p-3 bg-stone-100 rounded-lg text-sm text-stone-500 flex items-center">
-                        <CheckCircle2 className="w-4 h-4 mr-2 text-green-500" />
-                        Demo Mode: No real card required.
-                      </div>
-                    )}
-                  </div>
-                  <button 
-                    type="submit" 
-                    disabled={isSubmitting}
-                    className="w-full py-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-lg shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center"
-                  >
-                    {isSubmitting ? (
-                      <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}>
-                        <Utensils className="w-5 h-5" />
-                      </motion.div>
-                    ) : (
-                      `Place Order • $${cartTotal.toFixed(2)}`
-                    )}
-                  </button>
-                </form>
-              </div>
-            )}
-          </motion.div>
-        </div>
-      )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Navigation */}
       <nav className="fixed w-full z-30 bg-white/90 backdrop-blur-md border-b border-stone-200">
